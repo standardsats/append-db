@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "append-db",
+    "append-db-postgres",
+]
