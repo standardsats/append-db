@@ -1,17 +1,28 @@
-pub use crate::backend::class::StateBackend;
+pub use crate::backend::class::{SnapshotedUpdate, State, StateBackend};
+use async_trait::async_trait;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
-pub struct InMemory<T> {
-    pub state: T,
+pub struct InMemory<St: State> {
+    pub updates: Arc<Mutex<Vec<SnapshotedUpdate<St>>>>,
 }
 
-impl<T> InMemory<T> {
-    pub fn new(init_state: T) -> Self {
+impl<St: State> InMemory<St> {
+    pub fn new(init_state: St) -> Self {
         InMemory {
-            state: init_state,
+            updates: Arc::new(Mutex::new(vec![SnapshotedUpdate::Snapshot(init_state)])),
         }
     }
 }
 
-impl<T> StateBackend for InMemory<T> {
-    type State = T;
+#[async_trait]
+impl<St: State + 'static + Send> StateBackend for InMemory<St> {
+    type State = St;
+
+    async fn write(&mut self, upd: <Self::State as State>::Update) {
+        self.updates
+            .lock()
+            .await
+            .push(SnapshotedUpdate::Incremental(upd))
+    }
 }
