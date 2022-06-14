@@ -12,6 +12,7 @@ mod tests {
         field: u64,
     }
 
+    #[tokio::test]
     async fn in_memory_init() {
         let state0 = State0 {
             field: 42,
