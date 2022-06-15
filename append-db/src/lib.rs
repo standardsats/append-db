@@ -1,3 +1,4 @@
+#![feature(never_type)]
 pub mod backend;
 pub mod db;
 
@@ -21,12 +22,14 @@ mod tests {
 
     impl State for State0 {
         type Update = Update0;
+        type Err = !;
 
-        fn update(&mut self, upd: Update0) {
+        fn update(&mut self, upd: Update0) -> Result<(), Self::Err> {
             match upd {
                 Update0::Add(v) => self.field += v,
                 Update0::Set(v) => self.field = v,
             }
+            Ok(())
         }
     }
 
@@ -45,9 +48,9 @@ mod tests {
             field: 42,
         };
         let mut db = AppendDb::new(InMemory::new(state0.clone()), state0.clone());
-        db.update(Update0::Add(1)).await;
+        db.update(Update0::Add(1)).await.expect("update");
         assert_eq!(db.get().await.deref().field, 43);
-        db.update(Update0::Set(4)).await;
+        db.update(Update0::Set(4)).await.expect("update");
         assert_eq!(db.get().await.deref().field, 4);
     }
 }

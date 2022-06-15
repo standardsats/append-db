@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+#[derive(Clone)]
 pub struct InMemory<St: State> {
     pub updates: Arc<Mutex<Vec<SnapshotedUpdate<St>>>>,
 }
@@ -16,13 +17,10 @@ impl<St: State> InMemory<St> {
 }
 
 #[async_trait]
-impl<St: State + 'static + Send> StateBackend for InMemory<St> {
+impl<St: Clone + State + 'static + Send> StateBackend for InMemory<St> {
     type State = St;
-
-    async fn write(&mut self, upd: <Self::State as State>::Update) {
-        self.updates
-            .lock()
-            .await
-            .push(SnapshotedUpdate::Incremental(upd))
+    type Err = !;
+    async fn write(&mut self, upd: SnapshotedUpdate<Self::State>) -> Result<(), Self::Err> {
+        Ok(self.updates.lock().await.push(upd))
     }
 }

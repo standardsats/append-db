@@ -1,4 +1,6 @@
 use async_trait::async_trait;
+use std::fmt::Debug;
+use std::error::Error;
 
 /// Describes a storing backend that can 
 /// save and load given internal type of updates for 
@@ -6,19 +8,23 @@ use async_trait::async_trait;
 #[async_trait]
 pub trait StateBackend {
     /// Aggregated state in memory
-    type State: State + 'static;
+    type State: Clone + State + 'static;
+    /// Errors that can occur in the backend
+    type Err: Clone + Debug + Error + 'static;
 
     /// Write down state update into storage
-    async fn write(&mut self, upd: <Self::State as State>::Update);
+    async fn write(&mut self, upd: SnapshotedUpdate<Self::State>) -> Result<(), Self::Err>;
 }
 
 /// Aggregated state that could be updated by small updates
 pub trait State {
     /// Incremental single update of the state
     type Update: Clone + Send + 'static; 
+    /// Update error
+    type Err: Clone + Debug + Error + 'static;
 
     /// Update the state with incremental part
-    fn update(&mut self, upd: Self::Update);
+    fn update(&mut self, upd: Self::Update) -> Result<(), Self::Err>;
 }
 
 /// Update with added shapshot to capture points when 
