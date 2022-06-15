@@ -1,2 +1,5 @@
 result
 target
+pgsql-data
+.s.PGSQL.*
+postgresql.log
