@@ -14,8 +14,6 @@ pub enum AppendErr<BackErr, UpdErr> {
     Update(UpdErr),
     #[error("Backend: {0}")]
     Backend(BackErr),
-    #[error("First update in storage is not snapshot!")]
-    FirstNotSnapshot,
 }
 
 pub struct AppendDb<T: StateBackend> {
@@ -67,7 +65,7 @@ impl<St: Clone + State + 'static, Backend: StateBackend<State = St>> AppendDb<Ba
 
         let mut state = match updates.first() {
             Some(SnapshotedUpdate::Snapshot(s)) => s.clone(),
-            _ => return Err(AppendErr::FirstNotSnapshot),
+            _ => self.last_state.lock().await.deref().clone(),
         };
         for upd in &updates[1..] {
             match upd {

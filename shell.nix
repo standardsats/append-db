@@ -17,5 +17,6 @@ in stdenv.mkDerivation rec {
   shellHook = ''
   export LIBCLANG_PATH="${llvmPackages.libclang}/lib"
   export OPENSSL_DIR="${merged-openssl}"
+  export DATABASE_URL=postgresql://appenddb:appenddb@localhost:5432/appenddb
   '';
 }

@@ -10,7 +10,7 @@ pub trait StateBackend {
     /// Aggregated state in memory
     type State: Clone + State + 'static;
     /// Errors that can occur in the backend
-    type Err: Clone + Debug + Error + 'static;
+    type Err: Debug + Error + 'static;
 
     /// Write down state update into storage
     async fn write(&mut self, upd: SnapshotedUpdate<Self::State>) -> Result<(), Self::Err>;
@@ -24,7 +24,7 @@ pub trait State {
     /// Incremental single update of the state
     type Update: Clone + PartialEq + Send + 'static; 
     /// Update error
-    type Err: Clone + Debug + Error + 'static;
+    type Err: Debug + Error + 'static;
 
     /// Update the state with incremental part
     fn update(&mut self, upd: Self::Update) -> Result<(), Self::Err>;
@@ -41,9 +41,6 @@ pub enum SnapshotedUpdate<St: State> {
 impl<St: State> SnapshotedUpdate<St> {
     /// True if update is snapshot
     pub fn is_snapshot(&self) -> bool {
-        match self {
-            SnapshotedUpdate::Snapshot(_) => true,
-            _ => false,
-        }
+        matches!(self, SnapshotedUpdate::Snapshot(_))
     }
 }

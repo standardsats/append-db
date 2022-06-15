@@ -9,10 +9,16 @@ pub struct InMemory<St: State> {
 }
 
 impl<St: State> InMemory<St> {
-    pub fn new(init_state: St) -> Self {
+    pub fn new() -> Self {
         InMemory {
-            updates: Arc::new(Mutex::new(vec![SnapshotedUpdate::Snapshot(init_state)])),
+            updates: Arc::new(Mutex::new(vec![])),
         }
+    }
+}
+
+impl<St: State> Default for InMemory<St> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -22,7 +28,8 @@ impl<St: Clone + State + 'static + Send> StateBackend for InMemory<St> {
     type Err = !;
 
     async fn write(&mut self, upd: SnapshotedUpdate<Self::State>) -> Result<(), Self::Err> {
-        Ok(self.updates.lock().await.push(upd))
+        self.updates.lock().await.push(upd);
+        Ok(())
     }
 
     async fn updates(&self) -> Result<Vec<SnapshotedUpdate<Self::State>>, Self::Err> {

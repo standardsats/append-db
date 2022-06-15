@@ -38,7 +38,7 @@ mod tests {
         let state0 = State0 {
             field: 42,
         };
-        let db = AppendDb::new(InMemory::new(state0.clone()), state0.clone());
+        let db = AppendDb::new(InMemory::new(), state0.clone());
         assert_eq!(db.get().await.deref(), &state0);
     }
 
@@ -47,7 +47,7 @@ mod tests {
         let state0 = State0 {
             field: 42,
         };
-        let mut db = AppendDb::new(InMemory::new(state0.clone()), state0.clone());
+        let mut db = AppendDb::new(InMemory::new(), state0);
         db.update(Update0::Add(1)).await.expect("update");
         assert_eq!(db.get().await.deref().field, 43);
         db.update(Update0::Set(4)).await.expect("update");
@@ -59,7 +59,7 @@ mod tests {
         let state0 = State0 {
             field: 42,
         };
-        let mut db = AppendDb::new(InMemory::new(state0.clone()), state0.clone());
+        let mut db = AppendDb::new(InMemory::new(), state0);
         db.update(Update0::Add(1)).await.expect("update");
         db.snapshot().await.expect("snapshot");
 
@@ -72,7 +72,7 @@ mod tests {
         let state0 = State0 {
             field: 42,
         };
-        let mut db = AppendDb::new(InMemory::new(state0.clone()), state0.clone());
+        let mut db = AppendDb::new(InMemory::new(), state0);
         db.update(Update0::Add(1)).await.expect("update");
         db.update(Update0::Set(4)).await.expect("update");
 
@@ -85,7 +85,7 @@ mod tests {
         let state0 = State0 {
             field: 42,
         };
-        let mut db = AppendDb::new(InMemory::new(state0.clone()), state0.clone());
+        let mut db = AppendDb::new(InMemory::new(), state0);
         db.update(Update0::Add(1)).await.expect("update");
         db.snapshot().await.expect("snapshot");
         db.update(Update0::Set(4)).await.expect("update");

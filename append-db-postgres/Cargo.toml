@@ -6,5 +6,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+append-db = { path = "../append-db" }
+async-trait = "0.1.56"
+chrono = { version = "0.4.19", features = [ "serde" ] }
+futures = "0.3.19"
 log = "0.4.14"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sqlx = { version = "0.5", features = [ "runtime-tokio-rustls", "migrate", "macros", "postgres", "json", "chrono" ] }
+thiserror = "1.0.31"
 tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+sqlx-database-tester = { version = "0.2.0", features = [ "runtime-tokio" ] }
