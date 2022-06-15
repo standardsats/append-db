@@ -14,12 +14,15 @@ pub trait StateBackend {
 
     /// Write down state update into storage
     async fn write(&mut self, upd: SnapshotedUpdate<Self::State>) -> Result<(), Self::Err>;
+
+    /// Collect all updates until first snapshot in the chain
+    async fn updates(&self) -> Result<Vec<SnapshotedUpdate<Self::State>>, Self::Err>;
 }
 
 /// Aggregated state that could be updated by small updates
 pub trait State {
     /// Incremental single update of the state
-    type Update: Clone + Send + 'static; 
+    type Update: Clone + PartialEq + Send + 'static; 
     /// Update error
     type Err: Clone + Debug + Error + 'static;
 
@@ -29,7 +32,18 @@ pub trait State {
 
 /// Update with added shapshot to capture points when 
 /// we want to save whole state.
+#[derive(Debug, Clone, PartialEq)]
 pub enum SnapshotedUpdate<St: State> {
     Incremental(St::Update),
     Snapshot(St),
+}
+
+impl<St: State> SnapshotedUpdate<St> {
+    /// True if update is snapshot
+    pub fn is_snapshot(&self) -> bool {
+        match self {
+            SnapshotedUpdate::Snapshot(_) => true,
+            _ => false,
+        }
+    }
 }

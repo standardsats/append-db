@@ -4,16 +4,18 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::{Mutex, MutexGuard};
 
-#[derive(Error, Debug)]
 /// We can fail either due state update logic or storage backend failure
 ///
-/// Note: we cannot use associated types here as it will require 'Debug' impl for 
-/// storages. 
+/// Note: we cannot use associated types here as it will require 'Debug' impl for
+/// storages.
+#[derive(Error, Debug)]
 pub enum AppendErr<BackErr, UpdErr> {
     #[error("Update state: {0}")]
     Update(UpdErr),
     #[error("Backend: {0}")]
     Backend(BackErr),
+    #[error("First update in storage is not snapshot!")]
+    FirstNotSnapshot,
 }
 
 pub struct AppendDb<T: StateBackend> {
@@ -22,6 +24,7 @@ pub struct AppendDb<T: StateBackend> {
 }
 
 impl<St: Clone + State + 'static, Backend: StateBackend<State = St>> AppendDb<Backend> {
+    /// Initialize with given backend and strarting in memory state
     pub fn new(backend: Backend, initial_state: St) -> Self {
         AppendDb {
             backend,
@@ -29,11 +32,16 @@ impl<St: Clone + State + 'static, Backend: StateBackend<State = St>> AppendDb<Ba
         }
     }
 
+    /// Get current in memory state
     pub async fn get(&self) -> MutexGuard<'_, St> {
         self.last_state.lock().await
     }
 
-    pub async fn update(&mut self, upd: St::Update) -> Result<(), AppendErr<Backend::Err, St::Err>> {
+    /// Write down to storage new update and update in memory version
+    pub async fn update(
+        &mut self,
+        upd: St::Update,
+    ) -> Result<(), AppendErr<Backend::Err, St::Err>> {
         let mut state = self.last_state.lock().await;
         self.backend
             .write(SnapshotedUpdate::Incremental(upd.clone()))
@@ -48,7 +56,30 @@ impl<St: Clone + State + 'static, Backend: StateBackend<State = St>> AppendDb<Ba
         let state = self.last_state.lock().await;
         self.backend
             .write(SnapshotedUpdate::Snapshot(state.deref().clone()))
-            .await.map_err(AppendErr::Backend)?;
+            .await
+            .map_err(AppendErr::Backend)?;
+        Ok(())
+    }
+
+    /// Load state from storage
+    pub async fn load(&mut self) -> Result<(), AppendErr<Backend::Err, St::Err>> {
+        let updates = self.backend.updates().await.map_err(AppendErr::Backend)?;
+
+        let mut state = match updates.first() {
+            Some(SnapshotedUpdate::Snapshot(s)) => s.clone(),
+            _ => return Err(AppendErr::FirstNotSnapshot),
+        };
+        for upd in &updates[1..] {
+            match upd {
+                SnapshotedUpdate::Snapshot(s) => state = s.clone(),
+                SnapshotedUpdate::Incremental(upd) => {
+                    state.update(upd.clone()).map_err(AppendErr::Update)?
+                }
+            }
+        }
+        let mut cur_state = self.last_state.lock().await;
+        *cur_state = state;
+
         Ok(())
     }
 }

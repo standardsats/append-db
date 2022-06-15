@@ -5,7 +5,7 @@ pub mod db;
 #[cfg(test)]
 mod tests {
     use super::db::AppendDb;
-    use super::backend::class::State;
+    use super::backend::class::{State, StateBackend, SnapshotedUpdate};
     use super::backend::memory::InMemory;
     use std::ops::Deref;
 
@@ -51,6 +51,46 @@ mod tests {
         db.update(Update0::Add(1)).await.expect("update");
         assert_eq!(db.get().await.deref().field, 43);
         db.update(Update0::Set(4)).await.expect("update");
+        assert_eq!(db.get().await.deref().field, 4);
+    }
+
+    #[tokio::test]
+    async fn in_memory_snapshot() {
+        let state0 = State0 {
+            field: 42,
+        };
+        let mut db = AppendDb::new(InMemory::new(state0.clone()), state0.clone());
+        db.update(Update0::Add(1)).await.expect("update");
+        db.snapshot().await.expect("snapshot");
+
+        let upds = db.backend.updates().await.expect("collected");
+        assert_eq!(upds, vec![SnapshotedUpdate::Snapshot(State0 { field: 43 })])
+    }
+
+    #[tokio::test]
+    async fn in_memory_reconstruct() {
+        let state0 = State0 {
+            field: 42,
+        };
+        let mut db = AppendDb::new(InMemory::new(state0.clone()), state0.clone());
+        db.update(Update0::Add(1)).await.expect("update");
+        db.update(Update0::Set(4)).await.expect("update");
+
+        db.load().await.expect("load");
+        assert_eq!(db.get().await.deref().field, 4);
+    }
+
+    #[tokio::test]
+    async fn in_memory_reconstruct_snapshot() {
+        let state0 = State0 {
+            field: 42,
+        };
+        let mut db = AppendDb::new(InMemory::new(state0.clone()), state0.clone());
+        db.update(Update0::Add(1)).await.expect("update");
+        db.snapshot().await.expect("snapshot");
+        db.update(Update0::Set(4)).await.expect("update");
+
+        db.load().await.expect("load");
         assert_eq!(db.get().await.deref().field, 4);
     }
 }
