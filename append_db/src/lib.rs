@@ -4,9 +4,9 @@ pub mod db;
 
 #[cfg(test)]
 mod tests {
-    use super::db::AppendDb;
-    use super::backend::class::{State, StateBackend, SnapshotedUpdate};
+    use super::backend::class::{SnapshotedUpdate, State, StateBackend};
     use super::backend::memory::InMemory;
+    use super::db::AppendDb;
     use std::ops::Deref;
 
     #[derive(Clone, Debug, PartialEq)]
@@ -35,18 +35,14 @@ mod tests {
 
     #[tokio::test]
     async fn in_memory_init() {
-        let state0 = State0 {
-            field: 42,
-        };
+        let state0 = State0 { field: 42 };
         let db = AppendDb::new(InMemory::new(), state0.clone());
         assert_eq!(db.get().await.deref(), &state0);
     }
 
     #[tokio::test]
     async fn in_memory_updates() {
-        let state0 = State0 {
-            field: 42,
-        };
+        let state0 = State0 { field: 42 };
         let mut db = AppendDb::new(InMemory::new(), state0);
         db.update(Update0::Add(1)).await.expect("update");
         assert_eq!(db.get().await.deref().field, 43);
@@ -56,9 +52,7 @@ mod tests {
 
     #[tokio::test]
     async fn in_memory_snapshot() {
-        let state0 = State0 {
-            field: 42,
-        };
+        let state0 = State0 { field: 42 };
         let mut db = AppendDb::new(InMemory::new(), state0);
         db.update(Update0::Add(1)).await.expect("update");
         db.snapshot().await.expect("snapshot");
@@ -69,9 +63,7 @@ mod tests {
 
     #[tokio::test]
     async fn in_memory_reconstruct() {
-        let state0 = State0 {
-            field: 42,
-        };
+        let state0 = State0 { field: 42 };
         let mut db = AppendDb::new(InMemory::new(), state0);
         db.update(Update0::Add(1)).await.expect("update");
         db.update(Update0::Set(4)).await.expect("update");
@@ -82,9 +74,7 @@ mod tests {
 
     #[tokio::test]
     async fn in_memory_reconstruct_snapshot() {
-        let state0 = State0 {
-            field: 42,
-        };
+        let state0 = State0 { field: 42 };
         let mut db = AppendDb::new(InMemory::new(), state0);
         db.update(Update0::Add(1)).await.expect("update");
         db.snapshot().await.expect("snapshot");

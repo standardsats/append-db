@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "append-db"
+name = "append_db"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -24,10 +24,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "append-db-postgres"
+name = "append_db_postgres"
 version = "0.1.0"
 dependencies = [
- "append-db",
+ "append_db",
+ "append_db_postgres_derive",
  "async-trait",
  "chrono",
  "futures",
@@ -38,6 +39,16 @@ dependencies = [
  "sqlx-database-tester",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "append_db_postgres_derive"
+version = "0.1.0"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -130,6 +141,12 @@ dependencies = [
  "time",
  "winapi",
 ]
+
+[[package]]
+name = "convert_case"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb4a24b1aaf0fd0ce8b45161144d6f42cd91677fd5940fd431183eb023b3a2b8"
 
 [[package]]
 name = "cpufeatures"

@@ -10,88 +10,20 @@ mod tests {
     };
     use append_db::backend::class::{SnapshotedUpdate, State, StateBackend};
     use append_db::db::AppendDb;
+    use append_db_postgres_derive::*;
     use serde::{Deserialize, Serialize};
     use std::borrow::Cow;
     use std::ops::Deref;
 
-    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, VersionedState)]
     struct State0 {
         field: u64,
     }
 
-    impl VersionedState for State0 {
-        fn deserialize_with_version(
-            version: u16,
-            value: serde_json::Value,
-        ) -> Result<Self, UpdateBodyError> {
-            serde_json::from_value(value.clone()).map_err(|e| {
-                UpdateBodyError::Deserialize(version, Cow::Borrowed(SNAPSHOT_TAG), e, value)
-            })
-        }
-
-        fn get_version(&self) -> u16 {
-            0
-        }
-
-        fn serialize(&self) -> Result<serde_json::Value, UpdateBodyError> {
-            Ok(serde_json::to_value(&self)
-                .map_err(|e| UpdateBodyError::Serialize(Cow::Borrowed(SNAPSHOT_TAG), e))?)
-        }
-    }
-
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, HasUpdateTag)]
     enum Update0 {
         Add(u64),
         Set(u64),
-    }
-
-    impl HasUpdateTag for Update0 {
-        fn deserialize_by_tag(
-            tag: &UpdateTag,
-            version: u16,
-            value: serde_json::Value,
-        ) -> Result<Self, UpdateBodyError>
-        where
-            Self: std::marker::Sized,
-        {
-            if tag == "add" {
-                Ok(Update0::Add(
-                    serde_json::from_value(value.clone()).map_err(|e| {
-                        UpdateBodyError::Deserialize(version, tag.to_owned(), e, value)
-                    })?,
-                ))
-            } else if tag == "set" {
-                Ok(Update0::Set(
-                    serde_json::from_value(value.clone()).map_err(|e| {
-                        UpdateBodyError::Deserialize(version, tag.to_owned(), e, value)
-                    })?,
-                ))
-            } else {
-                Err(UpdateBodyError::UnknownTag(UnknownUpdateTag(
-                    tag.to_string(),
-                )))
-            }
-        }
-
-        fn get_tag(&self) -> UpdateTag {
-            match self {
-                Update0::Add(_) => Cow::Borrowed("add"),
-                Update0::Set(_) => Cow::Borrowed("set"),
-            }
-        }
-
-        fn get_version(&self) -> u16 {
-            0
-        }
-
-        fn serialize_untagged(&self) -> Result<serde_json::Value, UpdateBodyError> {
-            match self {
-                Update0::Add(v) => Ok(serde_json::to_value(&v)
-                    .map_err(|e| UpdateBodyError::Serialize(self.get_tag(), e))?),
-                Update0::Set(v) => Ok(serde_json::to_value(&v)
-                    .map_err(|e| UpdateBodyError::Serialize(self.get_tag(), e))?),
-            }
-        }
     }
 
     impl State for State0 {

@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
-    "append-db",
-    "append-db-postgres",
+    "append_db",
+    "append_db_postgres",
+    "append_db_postgres_derive",
 ]

@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use std::fmt::Debug;
 use std::error::Error;
+use std::fmt::Debug;
 
-/// Describes a storing backend that can 
-/// save and load given internal type of updates for 
+/// Describes a storing backend that can
+/// save and load given internal type of updates for
 /// state.
 #[async_trait]
 pub trait StateBackend {
@@ -22,7 +22,7 @@ pub trait StateBackend {
 /// Aggregated state that could be updated by small updates
 pub trait State {
     /// Incremental single update of the state
-    type Update: Clone + PartialEq + Send + 'static; 
+    type Update: Clone + PartialEq + Send + 'static;
     /// Update error
     type Err: Debug + Error + 'static;
 
@@ -30,7 +30,7 @@ pub trait State {
     fn update(&mut self, upd: Self::Update) -> Result<(), Self::Err>;
 }
 
-/// Update with added shapshot to capture points when 
+/// Update with added shapshot to capture points when
 /// we want to save whole state.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SnapshotedUpdate<St: State> {
