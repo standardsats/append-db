@@ -32,7 +32,7 @@ in stdenv.mkDerivation rec {
     for f in ./appenddb-db-postgres/migrations}*.sql
     do
       echo "Applying $f"
-      psql --host=$PWD -p$PG_PORT -U hexstody -d hexstody -f $f
+      psql --host=$PWD -p$PG_PORT -U appenddb -d appenddb -f $f
     done
   else 
     pg_ctl start -D$PG_DATA -l postgresql.log
