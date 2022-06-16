@@ -27,9 +27,9 @@ in stdenv.mkDerivation rec {
     echo "port = $PG_PORT" >> $PG_DATA/postgresql.conf
     echo "unix_socket_directories = '$PWD'" >> $PG_DATA/postgresql.conf
     pg_ctl start -D$PG_DATA -l postgresql.log
-    psql --host=$PWD -p$PG_PORT -d postgres -c "create role \"appenddb\" with login password 'appenddb';"
+    psql --host=$PWD -p$PG_PORT -d postgres -c "create role \"appenddb\" with login createdb password 'appenddb';"
     psql --host=$PWD -p$PG_PORT -d postgres -c "create database \"appenddb\" owner \"appenddb\";"
-    for f in ./appenddb-db-postgres/migrations/*.sql
+    for f in ./append_db_postgres/migrations/*.sql
     do
       echo "Applying $f"
       psql --host=$PWD -p$PG_PORT -U appenddb -d appenddb -f $f
