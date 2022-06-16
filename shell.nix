@@ -29,7 +29,7 @@ in stdenv.mkDerivation rec {
     pg_ctl start -D$PG_DATA -l postgresql.log
     psql --host=$PWD -p$PG_PORT -d postgres -c "create role \"appenddb\" with login password 'appenddb';"
     psql --host=$PWD -p$PG_PORT -d postgres -c "create database \"appenddb\" owner \"appenddb\";"
-    for f in ./appenddb-db-postgres/migrations}*.sql
+    for f in ./appenddb-db-postgres/migrations/*.sql
     do
       echo "Applying $f"
       psql --host=$PWD -p$PG_PORT -U appenddb -d appenddb -f $f
@@ -43,7 +43,7 @@ in stdenv.mkDerivation rec {
   }
   trap finish EXIT
 
-  export DATABASE_URL=postgres://appenddb:appenddb@localhost/appenddb
+  export DATABASE_URL=postgres://appenddb:appenddb@127.0.0.1:$PG_PORT/appenddb
   echo "Local database accessible by $DATABASE_URL"
   '';
 }
