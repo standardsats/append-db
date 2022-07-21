@@ -2,18 +2,22 @@
 pub mod backend;
 pub mod update;
 
+pub use update::{HasUpdateTag, VersionedState};
+#[cfg(feature = "derive")]
+pub use append_db_postgres_derive::*;
+
 #[cfg(test)]
 mod tests {
     use crate::backend::Postgres;
     use crate::update::{
-        HasUpdateTag, UnknownUpdateTag, UpdateBodyError, UpdateTag, VersionedState, SNAPSHOT_TAG,
+        HasUpdateTag, VersionedState,
     };
     use append_db::backend::class::{SnapshotedUpdate, State, StateBackend};
     use append_db::db::AppendDb;
     use append_db_postgres_derive::*;
     use serde::{Deserialize, Serialize};
-    use std::borrow::Cow;
     use std::ops::Deref;
+    use crate as append_db_postgres;
 
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, VersionedState)]
     struct State0 {

@@ -2,6 +2,8 @@
 pub mod backend;
 pub mod db;
 
+pub use backend::class::*;
+
 #[cfg(test)]
 mod tests {
     use super::backend::class::{SnapshotedUpdate, State, StateBackend};

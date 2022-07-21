@@ -18,21 +18,23 @@ pub fn versioned_state_derive(input: TokenStream) -> TokenStream {
 fn impl_versioned_state(ast: &syn::DeriveInput) -> TokenStream {
     let name = &ast.ident;
     let gen = quote! {
+        use append_db_postgres::update::{UpdateBodyError, SNAPSHOT_TAG};
+
         impl VersionedState for #name {
             fn deserialize_with_version(
                 version: u16,
                 value: serde_json::Value,
-            ) -> Result<Self, UpdateBodyError> {
+            ) -> Result<Self, append_db_postgres::update::UpdateBodyError> {
                 serde_json::from_value(value.clone()).map_err(|e| {
-                    UpdateBodyError::Deserialize(version, Cow::Borrowed(SNAPSHOT_TAG), e, value)
+                    append_db_postgres::update::UpdateBodyError::Deserialize(version, std::borrow::Cow::Borrowed(SNAPSHOT_TAG), e, value)
                 })
             }
             fn get_version(&self) -> u16 {
                 0
             }
-            fn serialize(&self) -> Result<serde_json::Value, UpdateBodyError> {
+            fn serialize(&self) -> Result<serde_json::Value, append_db_postgres::update::UpdateBodyError> {
                 Ok(serde_json::to_value(&self)
-                    .map_err(|e| UpdateBodyError::Serialize(Cow::Borrowed(SNAPSHOT_TAG), e))?)
+                    .map_err(|e| append_db_postgres::update::UpdateBodyError::Serialize(std::borrow::Cow::Borrowed(SNAPSHOT_TAG), e))?)
             }
         }
     };
@@ -60,22 +62,22 @@ fn impl_has_update_tag(ast: &syn::DeriveInput) -> TokenStream {
     let gen = quote! {
         impl HasUpdateTag for #name {
             fn deserialize_by_tag(
-                tag: &UpdateTag,
+                tag: &append_db_postgres::update::UpdateTag,
                 version: u16,
                 value: serde_json::Value,
-            ) -> Result<Self, UpdateBodyError>
+            ) -> Result<Self, append_db_postgres::update::UpdateBodyError>
             where
                 Self: std::marker::Sized,
             {
                 #deserialize_by_tag_body
             }
-            fn get_tag(&self) -> UpdateTag {
+            fn get_tag(&self) -> append_db_postgres::update::UpdateTag {
                 #impl_get_tag_body
             }
             fn get_version(&self) -> u16 {
                 0
             }
-            fn serialize_untagged(&self) -> Result<serde_json::Value, UpdateBodyError> {
+            fn serialize_untagged(&self) -> Result<serde_json::Value, append_db_postgres::update::UpdateBodyError> {
                 #impl_serialize_untagged_body
             }
         }
@@ -97,14 +99,14 @@ fn enum_tag(name: &syn::Ident) -> String {
 fn impl_deserialize_by_tag(name: &syn::Ident, data: &syn::Data) -> TokenStream2 {
     let tags = enum_tags(data);
     let mut variant_checkers = TokenStream2::new();
-    for (i, tag) in tags.into_iter().enumerate() {
+    for (i, tag) in tags.iter().enumerate() {
         let tag_str = enum_tag(&tag);
         if i == 0 {
             variant_checkers.extend(quote! {
                 if tag == #tag_str {
                     Ok(#name::#tag(
                         serde_json::from_value(value.clone()).map_err(|e| {
-                            UpdateBodyError::Deserialize(version, tag.to_owned(), e, value)
+                            append_db_postgres::update::UpdateBodyError::Deserialize(version, tag.to_owned(), e, value)
                         })?,
                     ))
                 }
@@ -114,26 +116,40 @@ fn impl_deserialize_by_tag(name: &syn::Ident, data: &syn::Data) -> TokenStream2 
                 else if tag == #tag_str {
                     Ok(#name::#tag(
                         serde_json::from_value(value.clone()).map_err(|e| {
-                            UpdateBodyError::Deserialize(version, tag.to_owned(), e, value)
+                            append_db_postgres::update::UpdateBodyError::Deserialize(version, tag.to_owned(), e, value)
                         })?,
                     ))
                 }
             })
         }
     }
-    variant_checkers.extend(quote! {
-        else {
-            Err(UpdateBodyError::UnknownTag(UnknownUpdateTag(
+    if !tags.is_empty() {
+        variant_checkers.extend(quote! {
+            else {
+                Err(append_db_postgres::update::UpdateBodyError::UnknownTag(append_db_postgres::update::UnknownUpdateTag(
+                    tag.to_string(),
+                )))
+            }
+        });
+    } else {
+        variant_checkers.extend(quote! {
+            Err(append_db_postgres::update::UpdateBodyError::UnknownTag(append_db_postgres::update::UnknownUpdateTag(
                 tag.to_string(),
             )))
-        }
-    });
+        });
+    }
+    
     variant_checkers
 }
 
 fn impl_get_tag(name: &syn::Ident, data: &syn::Data) -> TokenStream2 {
     let mut matches = TokenStream2::new();
     match data {
+        Data::Enum(data_enum) if data_enum.variants.is_empty() => {
+            matches.extend(quote! {
+                _ => todo!(),
+            })
+        }
         Data::Enum(data_enum) => {
             for variant in data_enum.variants.iter() {
                 // Variant's name
@@ -149,7 +165,7 @@ fn impl_get_tag(name: &syn::Ident, data: &syn::Data) -> TokenStream2 {
                 let tag_str = enum_tag(variant_name);
 
                 matches.extend(quote! {
-                    #name::#variant_name #fields_in_variant => Cow::Borrowed(#tag_str),
+                    #name::#variant_name #fields_in_variant => std::borrow::Cow::Borrowed(#tag_str),
                 })
             }
         }
@@ -166,6 +182,11 @@ fn impl_get_tag(name: &syn::Ident, data: &syn::Data) -> TokenStream2 {
 fn impl_serialize_untagged(name: &syn::Ident, data: &syn::Data) -> TokenStream2 {
     let mut matches = TokenStream2::new();
     match data {
+        Data::Enum(data_enum) if data_enum.variants.is_empty() => {
+            matches.extend(quote! {
+                _ => todo!(),
+            })
+        }
         Data::Enum(data_enum) => {
             for variant in data_enum.variants.iter() {
                 // Variant's name
@@ -181,7 +202,7 @@ fn impl_serialize_untagged(name: &syn::Ident, data: &syn::Data) -> TokenStream2 
 
                 matches.extend(quote! {
                     #name::#variant_name #fields_in_variant => Ok(serde_json::to_value(&v)
-                    .map_err(|e| UpdateBodyError::Serialize(self.get_tag(), e))?),
+                    .map_err(|e| append_db_postgres::update::UpdateBodyError::Serialize(self.get_tag(), e))?),
                 })
             }
         }
