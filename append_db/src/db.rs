@@ -41,11 +41,11 @@ impl<St: Clone + State + 'static, Backend: StateBackend<State = St>> AppendDb<Ba
         upd: St::Update,
     ) -> Result<(), AppendErr<Backend::Err, St::Err>> {
         let mut state = self.last_state.lock().await;
+        state.update(upd.clone()).map_err(AppendErr::Update)?;
         self.backend
-            .write(SnapshotedUpdate::Incremental(upd.clone()))
+            .write(SnapshotedUpdate::Incremental(upd))
             .await
             .map_err(AppendErr::Backend)?;
-        state.update(upd).map_err(AppendErr::Update)?;
         Ok(())
     }
 
