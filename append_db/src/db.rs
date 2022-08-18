@@ -67,11 +67,13 @@ impl<St: Clone + State + 'static, Backend: StateBackend<State = St>> AppendDb<Ba
             Some(SnapshotedUpdate::Snapshot(s)) => s.clone(),
             _ => self.last_state.lock().await.deref().clone(),
         };
-        for upd in &updates[1..] {
-            match upd {
-                SnapshotedUpdate::Snapshot(s) => state = s.clone(),
-                SnapshotedUpdate::Incremental(upd) => {
-                    state.update(upd.clone()).map_err(AppendErr::Update)?
+        if updates.len() > 1 {
+            for upd in &updates[1..] {
+                match upd {
+                    SnapshotedUpdate::Snapshot(s) => state = s.clone(),
+                    SnapshotedUpdate::Incremental(upd) => {
+                        state.update(upd.clone()).map_err(AppendErr::Update)?
+                    }
                 }
             }
         }
