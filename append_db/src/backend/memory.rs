@@ -1,6 +1,6 @@
 pub use crate::backend::class::{SnapshotedUpdate, State, StateBackend};
 use async_trait::async_trait;
-use std::sync::Arc;
+use std::{sync::Arc, convert::Infallible};
 use tokio::sync::Mutex;
 
 #[derive(Clone)]
@@ -25,7 +25,7 @@ impl<St: State> Default for InMemory<St> {
 #[async_trait]
 impl<St: Clone + State + 'static + Send> StateBackend for InMemory<St> {
     type State = St;
-    type Err = !;
+    type Err = Infallible;
 
     async fn write(&mut self, upd: SnapshotedUpdate<Self::State>) -> Result<(), Self::Err> {
         self.updates.lock().await.push(upd);
