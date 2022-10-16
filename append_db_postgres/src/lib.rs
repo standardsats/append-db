@@ -1,4 +1,3 @@
-#![feature(never_type)]
 pub mod backend;
 pub mod update;
 
@@ -16,6 +15,7 @@ mod tests {
     use append_db::db::AppendDb;
     use append_db_postgres_derive::*;
     use serde::{Deserialize, Serialize};
+    use std::convert::Infallible;
     use std::ops::Deref;
     use crate as append_db_postgres;
 
@@ -32,7 +32,7 @@ mod tests {
 
     impl State for State0 {
         type Update = Update0;
-        type Err = !;
+        type Err = Infallible;
 
         fn update(&mut self, upd: Update0) -> Result<(), Self::Err> {
             match upd {

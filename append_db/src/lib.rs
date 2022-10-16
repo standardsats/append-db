@@ -1,4 +1,3 @@
-#![feature(never_type)]
 pub mod backend;
 pub mod db;
 
@@ -9,6 +8,7 @@ mod tests {
     use super::backend::class::{SnapshotedUpdate, State, StateBackend};
     use super::backend::memory::InMemory;
     use super::db::AppendDb;
+    use std::convert::Infallible;
     use std::ops::Deref;
 
     #[derive(Clone, Debug, PartialEq)]
@@ -24,7 +24,7 @@ mod tests {
 
     impl State for State0 {
         type Update = Update0;
-        type Err = !;
+        type Err = Infallible;
 
         fn update(&mut self, upd: Update0) -> Result<(), Self::Err> {
             match upd {
