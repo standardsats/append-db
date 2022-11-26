@@ -63,17 +63,16 @@ impl<St: Clone + State + 'static, Backend: StateBackend<State = St>> AppendDb<Ba
     pub async fn load(&mut self) -> Result<(), AppendErr<Backend::Err, St::Err>> {
         let updates = self.backend.updates().await.map_err(AppendErr::Backend)?;
 
-        let mut state = match updates.first() {
-            Some(SnapshotedUpdate::Snapshot(s)) => s.clone(),
-            _ => self.last_state.lock().await.deref().clone(),
+        let (mut state, start_index) = match updates.first() {
+            Some(SnapshotedUpdate::Snapshot(s)) => (s.clone(), 1),
+            _ => (self.last_state.lock().await.deref().clone(), 0),
         };
-        if updates.len() > 1 {
-            for upd in &updates[1..] {
-                match upd {
-                    SnapshotedUpdate::Snapshot(s) => state = s.clone(),
-                    SnapshotedUpdate::Incremental(upd) => {
-                        state.update(upd.clone()).map_err(AppendErr::Update)?
-                    }
+        
+        for upd in &updates[start_index..] {
+            match upd {
+                SnapshotedUpdate::Snapshot(s) => state = s.clone(),
+                SnapshotedUpdate::Incremental(upd) => {
+                    state.update(upd.clone()).map_err(AppendErr::Update)?
                 }
             }
         }
