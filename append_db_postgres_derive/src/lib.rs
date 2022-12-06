@@ -32,6 +32,7 @@ fn impl_versioned_state(ast: &syn::DeriveInput) -> TokenStream {
             fn get_version(&self) -> u16 {
                 0
             }
+            #[allow(clippy::needless_question_mark)]
             fn serialize(&self) -> Result<serde_json::Value, append_db_postgres::update::UpdateBodyError> {
                 Ok(serde_json::to_value(&self)
                     .map_err(|e| append_db_postgres::update::UpdateBodyError::Serialize(std::borrow::Cow::Borrowed(SNAPSHOT_TAG), e))?)
@@ -100,7 +101,7 @@ fn impl_deserialize_by_tag(name: &syn::Ident, data: &syn::Data) -> TokenStream2 
     let tags = enum_tags(data);
     let mut variant_checkers = TokenStream2::new();
     for (i, tag) in tags.iter().enumerate() {
-        let tag_str = enum_tag(&tag);
+        let tag_str = enum_tag(tag);
         if i == 0 {
             variant_checkers.extend(quote! {
                 if tag == #tag_str {
