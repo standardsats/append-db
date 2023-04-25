@@ -9,6 +9,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::Mutex;
+use sqlx::Row;
 
 /// Connection pool to Postgres
 pub type Pool = sqlx::Pool<sqlx::Postgres>;
@@ -52,13 +53,22 @@ impl<
         let tag = format!("{}", update.get_tag());
         let body = update.serialize_untagged()?;
         let pool = self.pool.lock().await;
-        sqlx::query!(
-            "insert into updates (created, version, tag, body) values ($1, $2, $3, $4)",
+        let query = format!("insert into {} (created, version, tag, body) values ({}, {}, {}, {})",
+            St::TABLE,
             now,
             update.get_version() as i16,
             tag,
-            body
-        )
+            body,
+        );
+        println!("{}", query);
+        sqlx::query(&query)
+        // sqlx::query!(
+        //     "insert into updates (created, version, tag, body) values ($1, $2, $3, $4)",
+        //     now,
+        //     update.get_version() as i16,
+        //     tag,
+        //     body,
+        // )
         .execute(pool.deref())
         .await?;
         Ok(())
@@ -67,7 +77,9 @@ impl<
     async fn updates(&self) -> Result<Vec<SnapshotedUpdate<St>>, Self::Err> {
         let pool = self.pool.lock().await;
         let mut conn = pool.acquire().await?;
-        let res = sqlx::query!("select * from updates order by created desc")
+        let query = format!("select from {} order by created desc", St::TABLE);
+        let res = sqlx::query(&query)
+        // let res = sqlx::query!("select * from $1 order by created desc", St::TABLE)
             .fetch(&mut conn)
             .fuse();
         futures::pin_mut!(res);
@@ -77,7 +89,11 @@ impl<
                 mmrow = res.next() => {
                     if let Some(mrow) = mmrow {
                         let r = mrow?;
-                        let body = <SnapshotedUpdate<St>>::deserialize_by_tag(&Cow::Owned(r.tag), r.version as u16, r.body.clone())?;
+                        let body = <SnapshotedUpdate<St>>::deserialize_by_tag(
+                            &Cow::Owned(r.get("tag")), 
+                            r.get::<i16, &str>("version") as u16, 
+                            r.get::<serde_json::Value, &str>(("body").clone())
+                        )?;
                         body
                     } else {
                         break;
