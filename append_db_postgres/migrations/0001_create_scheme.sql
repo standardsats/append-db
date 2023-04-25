@@ -5,3 +5,11 @@ create table updates(
     tag text not null,
     body jsonb not null
 );
+
+create table updates2(
+    id serial primary key,
+    created timestamp not null,
+    version smallint not null,
+    tag text not null,
+    body jsonb not null
+);

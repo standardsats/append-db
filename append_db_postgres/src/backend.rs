@@ -37,6 +37,14 @@ impl<St: State> Postgres<St> {
             state_proxy: PhantomData,
         }
     }
+
+    /// Duplicates a connection to the same pool, casting St to St2
+    pub fn duplicate<St2: State>(&self) -> Postgres<St2>{
+        Postgres { 
+            pool: self.pool.clone(), 
+            state_proxy: PhantomData 
+        }
+    }
 }
 
 #[async_trait]
@@ -53,22 +61,14 @@ impl<
         let tag = format!("{}", update.get_tag());
         let body = update.serialize_untagged()?;
         let pool = self.pool.lock().await;
-        let query = format!("insert into {} (created, version, tag, body) values ({}, {}, {}, {})",
+        let query = format!("insert into {} (created, version, tag, body) values ('{}', {}, '{}', '{}')",
             St::TABLE,
             now,
             update.get_version() as i16,
             tag,
             body,
         );
-        println!("{}", query);
         sqlx::query(&query)
-        // sqlx::query!(
-        //     "insert into updates (created, version, tag, body) values ($1, $2, $3, $4)",
-        //     now,
-        //     update.get_version() as i16,
-        //     tag,
-        //     body,
-        // )
         .execute(pool.deref())
         .await?;
         Ok(())
@@ -77,9 +77,8 @@ impl<
     async fn updates(&self) -> Result<Vec<SnapshotedUpdate<St>>, Self::Err> {
         let pool = self.pool.lock().await;
         let mut conn = pool.acquire().await?;
-        let query = format!("select from {} order by created desc", St::TABLE);
+        let query = format!("select * from {} order by created desc", St::TABLE);
         let res = sqlx::query(&query)
-        // let res = sqlx::query!("select * from $1 order by created desc", St::TABLE)
             .fetch(&mut conn)
             .fuse();
         futures::pin_mut!(res);
@@ -90,9 +89,9 @@ impl<
                     if let Some(mrow) = mmrow {
                         let r = mrow?;
                         let body = <SnapshotedUpdate<St>>::deserialize_by_tag(
-                            &Cow::Owned(r.get("tag")), 
-                            r.get::<i16, &str>("version") as u16, 
-                            r.get::<serde_json::Value, &str>(("body").clone())
+                            &Cow::Owned(r.try_get("tag")?),
+                            r.try_get::<i16, &str>("version")? as u16,
+                            r.try_get("body")?
                         )?;
                         body
                     } else {

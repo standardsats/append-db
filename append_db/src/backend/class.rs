@@ -27,7 +27,7 @@ pub trait State {
     type Err: Debug + Error + 'static;
 
     /// Table holding updates
-    const TABLE: &'static str;
+    const TABLE: &'static str = "updates";
     
     /// Update the state with incremental part
     fn update(&mut self, upd: Self::Update) -> Result<(), Self::Err>;
