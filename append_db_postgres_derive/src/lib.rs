@@ -18,15 +18,13 @@ pub fn versioned_state_derive(input: TokenStream) -> TokenStream {
 fn impl_versioned_state(ast: &syn::DeriveInput) -> TokenStream {
     let name = &ast.ident;
     let gen = quote! {
-        use append_db_postgres::update::{UpdateBodyError, SNAPSHOT_TAG};
-
         impl VersionedState for #name {
             fn deserialize_with_version(
                 version: u16,
                 value: serde_json::Value,
             ) -> Result<Self, append_db_postgres::update::UpdateBodyError> {
                 serde_json::from_value(value.clone()).map_err(|e| {
-                    append_db_postgres::update::UpdateBodyError::Deserialize(version, std::borrow::Cow::Borrowed(SNAPSHOT_TAG), e, value)
+                    append_db_postgres::update::UpdateBodyError::Deserialize(version, std::borrow::Cow::Borrowed(append_db_postgres::update::SNAPSHOT_TAG), e, value)
                 })
             }
             fn get_version(&self) -> u16 {
@@ -35,7 +33,7 @@ fn impl_versioned_state(ast: &syn::DeriveInput) -> TokenStream {
             #[allow(clippy::needless_question_mark)]
             fn serialize(&self) -> Result<serde_json::Value, append_db_postgres::update::UpdateBodyError> {
                 Ok(serde_json::to_value(&self)
-                    .map_err(|e| append_db_postgres::update::UpdateBodyError::Serialize(std::borrow::Cow::Borrowed(SNAPSHOT_TAG), e))?)
+                    .map_err(|e| append_db_postgres::update::UpdateBodyError::Serialize(std::borrow::Cow::Borrowed(append_db_postgres::update::SNAPSHOT_TAG), e))?)
             }
         }
     };
