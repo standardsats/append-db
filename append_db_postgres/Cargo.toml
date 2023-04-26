@@ -2,6 +2,10 @@
 name = "append_db_postgres"
 version = "0.2.0"
 edition = "2021"
+description = "Support for PostgreSQL for append-db crate."
+license = "MIT"
+repository = "https://github.com/standardsats/append-db"
+authors = ["Anton Gushcha <ncrashed@proton.me>", "Levon Oganyan <lemarwin42@gmail.com>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
