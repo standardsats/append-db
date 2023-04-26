@@ -61,16 +61,14 @@ impl<
         let tag = format!("{}", update.get_tag());
         let body = update.serialize_untagged()?;
         let pool = self.pool.lock().await;
-        let query = format!("insert into {} (created, version, tag, body) values ('{}', {}, '{}', '{}')",
-            St::TABLE,
-            now,
-            update.get_version() as i16,
-            tag,
-            body,
-        );
-        sqlx::query(&query)
-        .execute(pool.deref())
-        .await?;
+        let query = format!("insert into {} (created, version, tag, body) values ($1, $2, $3, $4)", St::TABLE);
+        let query = sqlx::query(&query)
+            .bind(now)
+            .bind(update.get_version() as i16)
+            .bind(tag)
+            .bind(body)
+            .execute(pool.deref());
+        query.await?;
         Ok(())
     }
 

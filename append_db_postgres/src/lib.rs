@@ -208,11 +208,11 @@ mod tests {
         let postgres1 = postgres.duplicate();
         let mut db1 = AppendDb::new(postgres1, state1.clone());
 
-        db1.update(Update1::Append("Hello".to_string())).await.expect("update");
+        db1.update(Update1::Append("Hello ') drop table updates2;".to_string())).await.expect("update");
         db1.snapshot().await.expect("snapshot");
-        db1.update(Update1::Set("Hello world!".to_string())).await.expect("update");
+        db1.update(Update1::Set("Hello world! ') drop table updates2;".to_string())).await.expect("update");
 
         db1.load().await.expect("load");
-        assert_eq!(db1.get().await.deref().field, "Hello world!".to_string());
+        assert_eq!(db1.get().await.deref().field, "Hello world! ') drop table updates2;".to_string());
     }
 }
