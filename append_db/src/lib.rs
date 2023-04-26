@@ -25,6 +25,7 @@ mod tests {
     impl State for State0 {
         type Update = Update0;
         type Err = Infallible;
+        const TABLE: &'static str = "updates";
 
         fn update(&mut self, upd: Update0) -> Result<(), Self::Err> {
             match upd {

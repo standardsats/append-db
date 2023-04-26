@@ -23,7 +23,7 @@ in stdenv.mkDerivation rec {
   export PG_DATA=./pgsql-data
   export PG_PORT=5435
   if [ ! -d "$PG_DATA" ]; then
-    initdb $PG_DATA --auth=trust
+    initdb $PG_DATA --auth=trust --no-locale --encoding=UTF8
     echo "port = $PG_PORT" >> $PG_DATA/postgresql.conf
     echo "unix_socket_directories = '$PWD'" >> $PG_DATA/postgresql.conf
     pg_ctl start -D$PG_DATA -l postgresql.log
