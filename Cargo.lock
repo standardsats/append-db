@@ -15,7 +15,7 @@ dependencies = [
 
 [[package]]
 name = "append_db"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "log",
@@ -26,7 +26,7 @@ dependencies = [
 
 [[package]]
 name = "append_db_postgres"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "append_db",
  "append_db_postgres_derive",
@@ -44,7 +44,7 @@ dependencies = [
 
 [[package]]
 name = "append_db_postgres_derive"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "convert_case",
  "proc-macro2",
