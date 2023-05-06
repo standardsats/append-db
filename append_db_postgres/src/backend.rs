@@ -56,7 +56,7 @@ impl<
     type State = St;
     type Err = Error;
 
-    async fn write(&mut self, update: SnapshotedUpdate<St>) -> Result<(), Self::Err> {
+    async fn write(&self, update: SnapshotedUpdate<St>) -> Result<(), Self::Err> {
         let now = Utc::now().naive_utc();
         let tag = format!("{}", update.get_tag());
         let body = update.serialize_untagged()?;

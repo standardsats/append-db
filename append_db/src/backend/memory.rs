@@ -27,7 +27,7 @@ impl<St: Clone + State + 'static + Send> StateBackend for InMemory<St> {
     type State = St;
     type Err = Infallible;
 
-    async fn write(&mut self, upd: SnapshotedUpdate<Self::State>) -> Result<(), Self::Err> {
+    async fn write(&self, upd: SnapshotedUpdate<Self::State>) -> Result<(), Self::Err> {
         self.updates.lock().await.push(upd);
         Ok(())
     }

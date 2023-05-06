@@ -1,6 +1,6 @@
 [package]
 name = "append_db"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Simple append based state for applications over popular databases."
 license = "MIT"
@@ -12,5 +12,6 @@ authors = ["Anton Gushcha <ncrashed@proton.me>", "Levon Oganyan <lemarwin42@gmai
 [dependencies]
 async-trait = "0.1.56"
 log = "0.4.14"
+stm = "0.4.0"
 thiserror = "1.0.31"
 tokio = { version = "1", features = ["full"] }

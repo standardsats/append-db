@@ -1,6 +1,6 @@
 [package]
 name = "append_db_postgres"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Support for PostgreSQL for append-db crate."
 license = "MIT"
