@@ -1,3 +1,7 @@
+# 0.3.1
+
+* Add `load_patch` function
+
 # 0.3.0
 
 * Adapt lock-free logic for state and the whole database

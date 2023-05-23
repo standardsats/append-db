@@ -33,9 +33,7 @@ impl<St: Clone + State + Sync + Send + 'static, Backend: StateBackend<State = St
 
     /// Access current state
     pub fn get(&self) -> St {
-        atomically(|trans| {
-            self.last_state.read(trans)
-        })
+        atomically(|trans| self.last_state.read(trans))
     }
 
     /// Write down to storage new update and update in memory version
@@ -60,9 +58,7 @@ impl<St: Clone + State + Sync + Send + 'static, Backend: StateBackend<State = St
 
     /// Write down snapshot for current state
     pub async fn snapshot(&self) -> Result<(), AppendErr<Backend::Err, St::Err>> {
-        let state = atomically(|trans| {
-            self.last_state.read(trans)
-        });
+        let state = atomically(|trans| self.last_state.read(trans));
         self.backend
             .write(SnapshotedUpdate::Snapshot(state))
             .await
@@ -77,9 +73,7 @@ impl<St: Clone + State + Sync + Send + 'static, Backend: StateBackend<State = St
         let (mut state, start_index) = match updates.first() {
             Some(SnapshotedUpdate::Snapshot(s)) => (s.clone(), 1),
             _ => {
-                let state = atomically(|trans| {
-                    self.last_state.read(trans)
-                });
+                let state = atomically(|trans| self.last_state.read(trans));
                 (state, 0)
             }
         };
@@ -92,9 +86,42 @@ impl<St: Clone + State + Sync + Send + 'static, Backend: StateBackend<State = St
                 }
             }
         }
-        atomically(|trans| {
-            self.last_state.write(trans, state.clone())
-        });
+        atomically(|trans| self.last_state.write(trans, state.clone()));
+
+        Ok(())
+    }
+
+    /// Load state from storage using provided function to patch starting and snapshot states. That
+    /// is helpful if you add some runtime info into state that is not rendered in updates.
+    ///
+    /// The second parameter in the closure indicates whether the patching occurs at start or not.
+    /// For later snapshots it will be called with false.
+    pub async fn load_patched<F>(
+        &self,
+        patch_state: F,
+    ) -> Result<(), AppendErr<Backend::Err, St::Err>>
+    where
+        F: Copy + FnOnce(St, bool) -> St,
+    {
+        let updates = self.backend.updates().await.map_err(AppendErr::Backend)?;
+
+        let (mut state, start_index) = match updates.first() {
+            Some(SnapshotedUpdate::Snapshot(s)) => (patch_state(s.clone(), true), 1),
+            _ => {
+                let state = atomically(|trans| self.last_state.read(trans));
+                (patch_state(state, true), 0)
+            }
+        };
+
+        for upd in &updates[start_index..] {
+            match upd {
+                SnapshotedUpdate::Snapshot(s) => state = patch_state(s.clone(), false),
+                SnapshotedUpdate::Incremental(upd) => {
+                    state.update(upd.clone()).map_err(AppendErr::Update)?
+                }
+            }
+        }
+        atomically(|trans| self.last_state.write(trans, state.clone()));
 
         Ok(())
     }

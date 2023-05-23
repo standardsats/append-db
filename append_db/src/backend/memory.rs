@@ -1,6 +1,6 @@
 pub use crate::backend::class::{SnapshotedUpdate, State, StateBackend};
 use async_trait::async_trait;
-use std::{sync::Arc, convert::Infallible};
+use std::{convert::Infallible, sync::Arc};
 use tokio::sync::Mutex;
 
 #[derive(Clone)]

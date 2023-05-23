@@ -137,18 +137,16 @@ fn impl_deserialize_by_tag(name: &syn::Ident, data: &syn::Data) -> TokenStream2 
             )))
         });
     }
-    
+
     variant_checkers
 }
 
 fn impl_get_tag(name: &syn::Ident, data: &syn::Data) -> TokenStream2 {
     let mut matches = TokenStream2::new();
     match data {
-        Data::Enum(data_enum) if data_enum.variants.is_empty() => {
-            matches.extend(quote! {
-                _ => todo!(),
-            })
-        }
+        Data::Enum(data_enum) if data_enum.variants.is_empty() => matches.extend(quote! {
+            _ => todo!(),
+        }),
         Data::Enum(data_enum) => {
             for variant in data_enum.variants.iter() {
                 // Variant's name
@@ -181,11 +179,9 @@ fn impl_get_tag(name: &syn::Ident, data: &syn::Data) -> TokenStream2 {
 fn impl_serialize_untagged(name: &syn::Ident, data: &syn::Data) -> TokenStream2 {
     let mut matches = TokenStream2::new();
     match data {
-        Data::Enum(data_enum) if data_enum.variants.is_empty() => {
-            matches.extend(quote! {
-                _ => todo!(),
-            })
-        }
+        Data::Enum(data_enum) if data_enum.variants.is_empty() => matches.extend(quote! {
+            _ => todo!(),
+        }),
         Data::Enum(data_enum) => {
             for variant in data_enum.variants.iter() {
                 // Variant's name
