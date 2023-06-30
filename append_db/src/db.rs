@@ -33,7 +33,19 @@ impl<St: Clone + State + Sync + Send + 'static, Backend: StateBackend<State = St
 
     /// Access current state
     pub fn get(&self) -> St {
-        atomically(|trans| self.last_state.read(trans))
+        self.last_state.read_atomic()
+    }
+
+    /// Access part of state
+    pub fn get_with<F, T: Clone>(&self, getter: F) -> T
+    where
+        F: FnOnce(&St) -> T,
+    {
+        let st_arc = self.last_state.read_ref_atomic();
+        let st: &St = st_arc
+            .downcast_ref()
+            .expect("Cast to state is always valid here");
+        getter(st).clone()
     }
 
     /// Write down to storage new update and update in memory version

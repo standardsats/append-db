@@ -1,3 +1,7 @@
+# 0.3.2 
+
+* Add `get_with` for fetching part of state 
+
 # 0.3.1
 
 * Add `load_patch` function
