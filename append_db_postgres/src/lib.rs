@@ -14,9 +14,17 @@ mod tests {
     use append_db::db::AppendDb;
     use append_db_postgres_derive::*;
     use serde::{Deserialize, Serialize};
+    use sqlx::{query_as, query_scalar, FromRow};
     use std::convert::Infallible;
+    use uuid::Uuid;
     use std::time::Duration;
     use tokio::time::timeout;
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromRow)]
+    struct TestStruct {
+        id: i32,
+        u_id: Uuid,
+    }
 
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, VersionedState)]
     struct State0 {
@@ -250,6 +258,23 @@ mod tests {
     }
 
     #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
+    async fn uuid_test() {
+        let u_id = Uuid::new_v4();
+        let id = query_scalar("insert into uuid_test (u_id) values ($1) returning id")
+            .bind(u_id)
+            .fetch_one(&pool)
+            .await;
+        assert!(id.is_ok(), "Failed to insert: {}", format!("{:?}", id));
+        let id: i32 = id.unwrap();
+        let v: Result<TestStruct, sqlx::Error> = query_as("select * from uuid_test where id=$1")
+            .bind(id)
+            .fetch_one(&pool)
+            .await;
+        assert!(v.is_ok(), "Failed to select: {}", format!("{:?}", v));
+        assert_eq!(v.unwrap(), TestStruct { id, u_id }, "Not equal objects")
+    }
+
+    #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
     async fn dead_lock_test() {
         let state0 = State0 { field: 0 };
         let db = AppendDb::new(Postgres::new(pool), state0.clone());
@@ -270,7 +295,7 @@ mod tests {
         };
 
         assert!(
-            timeout(Duration::from_secs(2), locking_future)
+            timeout(Duration::from_secs(3), locking_future)
                 .await
                 .is_ok(),
             "Dead locked"

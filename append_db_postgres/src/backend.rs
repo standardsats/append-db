@@ -77,9 +77,8 @@ impl<
 
     async fn updates(&self) -> Result<Vec<SnapshotedUpdate<St>>, Self::Err> {
         let pool = self.pool.lock().await;
-        let mut conn = pool.acquire().await?;
         let query = format!("select * from {} order by created desc", St::TABLE);
-        let res = sqlx::query(&query).fetch(&mut conn).fuse();
+        let res = sqlx::query(&query).fetch(pool.deref()).fuse();
         futures::pin_mut!(res);
         let mut parsed: Vec<SnapshotedUpdate<St>> = vec![];
         loop {
@@ -87,12 +86,11 @@ impl<
                 mmrow = res.next() => {
                     if let Some(mrow) = mmrow {
                         let r = mrow?;
-                        let body = <SnapshotedUpdate<St>>::deserialize_by_tag(
+                        <SnapshotedUpdate<St>>::deserialize_by_tag(
                             &Cow::Owned(r.try_get("tag")?),
                             r.try_get::<i16, &str>("version")? as u16,
                             r.try_get("body")?
-                        )?;
-                        body
+                        )?
                     } else {
                         break;
                     }

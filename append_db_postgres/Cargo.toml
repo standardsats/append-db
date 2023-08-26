@@ -18,12 +18,14 @@ futures = "0.3.19"
 log = "0.4.14"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-sqlx = { version = "0.5", features = [ "runtime-tokio-rustls", "migrate", "macros", "postgres", "json", "chrono" ] }
+sqlx = { version = "0.7.1", features = [ "runtime-tokio-rustls", "migrate", "macros", "postgres", "json", "chrono" ] }
 thiserror = "1.0.31"
 tokio = { version = "1", features = ["full"] }
 
 [dev-dependencies]
 sqlx-database-tester = { version = "0.2.0", features = [ "runtime-tokio" ] }
+uuid = { version = "1.4.1", features = ["v4", "serde"] }
+sqlx = { version = "0.7.1", features = [ "runtime-tokio-rustls", "migrate", "macros", "postgres", "json", "chrono", "uuid" ] }
 
 [features]
 derive = []
