@@ -67,7 +67,7 @@ impl<St: Clone + State + 'static, Backend: StateBackend<State = St>> AppendDb<Ba
             Some(SnapshotedUpdate::Snapshot(s)) => (s.clone(), 1),
             _ => (self.last_state.lock().await.deref().clone(), 0),
         };
-        
+
         for upd in &updates[start_index..] {
             match upd {
                 SnapshotedUpdate::Snapshot(s) => state = s.clone(),

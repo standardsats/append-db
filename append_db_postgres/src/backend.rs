@@ -3,13 +3,13 @@ pub use append_db::backend::class::{SnapshotedUpdate, State, StateBackend};
 use async_trait::async_trait;
 use chrono::prelude::*;
 use futures::StreamExt;
+use sqlx::Row;
 use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::Mutex;
-use sqlx::Row;
 
 /// Connection pool to Postgres
 pub type Pool = sqlx::Pool<sqlx::Postgres>;
@@ -39,10 +39,10 @@ impl<St: State> Postgres<St> {
     }
 
     /// Duplicates a connection to the same pool, casting St to St2
-    pub fn duplicate<St2: State>(&self) -> Postgres<St2>{
-        Postgres { 
-            pool: self.pool.clone(), 
-            state_proxy: PhantomData 
+    pub fn duplicate<St2: State>(&self) -> Postgres<St2> {
+        Postgres {
+            pool: self.pool.clone(),
+            state_proxy: PhantomData,
         }
     }
 }
@@ -61,7 +61,10 @@ impl<
         let tag = format!("{}", update.get_tag());
         let body = update.serialize_untagged()?;
         let pool = self.pool.lock().await;
-        let query = format!("insert into {} (created, version, tag, body) values ($1, $2, $3, $4)", St::TABLE);
+        let query = format!(
+            "insert into {} (created, version, tag, body) values ($1, $2, $3, $4)",
+            St::TABLE
+        );
         let query = sqlx::query(&query)
             .bind(now)
             .bind(update.get_version() as i16)
@@ -74,11 +77,8 @@ impl<
 
     async fn updates(&self) -> Result<Vec<SnapshotedUpdate<St>>, Self::Err> {
         let pool = self.pool.lock().await;
-        let mut conn = pool.acquire().await?;
         let query = format!("select * from {} order by created desc", St::TABLE);
-        let res = sqlx::query(&query)
-            .fetch(&mut conn)
-            .fuse();
+        let res = sqlx::query(&query).fetch(pool.deref()).fuse();
         futures::pin_mut!(res);
         let mut parsed: Vec<SnapshotedUpdate<St>> = vec![];
         loop {
@@ -86,12 +86,11 @@ impl<
                 mmrow = res.next() => {
                     if let Some(mrow) = mmrow {
                         let r = mrow?;
-                        let body = <SnapshotedUpdate<St>>::deserialize_by_tag(
+                        <SnapshotedUpdate<St>>::deserialize_by_tag(
                             &Cow::Owned(r.try_get("tag")?),
                             r.try_get::<i16, &str>("version")? as u16,
                             r.try_get("body")?
-                        )?;
-                        body
+                        )?
                     } else {
                         break;
                     }

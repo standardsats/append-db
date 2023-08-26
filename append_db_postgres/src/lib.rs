@@ -1,30 +1,28 @@
 pub mod backend;
 pub mod update;
 
-pub use update::{HasUpdateTag, VersionedState};
 #[cfg(feature = "derive")]
 pub use append_db_postgres_derive::*;
+pub use update::{HasUpdateTag, VersionedState};
 
 #[cfg(test)]
 mod tests {
+    use crate as append_db_postgres;
     use crate::backend::Postgres;
-    use crate::update::{
-        HasUpdateTag, VersionedState,
-    };
+    use crate::update::{HasUpdateTag, VersionedState};
     use append_db::backend::class::{SnapshotedUpdate, State, StateBackend};
     use append_db::db::AppendDb;
     use append_db_postgres_derive::*;
     use serde::{Deserialize, Serialize};
     use sqlx::{query_as, query_scalar, FromRow};
-    use uuid::Uuid;
     use std::convert::Infallible;
     use std::ops::Deref;
-    use crate as append_db_postgres;
+    use uuid::Uuid;
 
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromRow)]
     struct TestStruct {
         id: i32,
-        u_id: Uuid
+        u_id: Uuid,
     }
 
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, VersionedState)]
@@ -34,13 +32,13 @@ mod tests {
 
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, VersionedState)]
     struct State1 {
-        field: String
+        field: String,
     }
 
     #[derive(Clone, Debug, PartialEq, HasUpdateTag)]
-    enum Update1{
+    enum Update1 {
         Append(String),
-        Set(String)
+        Set(String),
     }
 
     #[derive(Clone, Debug, PartialEq, HasUpdateTag)]
@@ -91,11 +89,13 @@ mod tests {
         let db = AppendDb::new(postgres.clone(), state0.clone());
         assert_eq!(db.get().await.deref(), &state0);
 
-        let state1 = State1 {field: String::new()};
+        let state1 = State1 {
+            field: String::new(),
+        };
         let postgres1 = postgres.duplicate();
         let db = AppendDb::new(postgres1, state1.clone());
         assert_eq!(db.get().await.deref(), &state1);
-    }    
+    }
 
     #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
     async fn postgres_updates() {
@@ -108,7 +108,7 @@ mod tests {
     }
 
     #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
-    async fn two_tables_test_updates(){
+    async fn two_tables_test_updates() {
         let postgres = Postgres::new(pool);
         let state0 = State0 { field: 42 };
         let mut db = AppendDb::new(postgres.clone(), state0.clone());
@@ -117,14 +117,20 @@ mod tests {
         db.update(Update0::Set(4)).await.expect("update");
         assert_eq!(db.get().await.deref().field, 4);
 
-        let state1 = State1 {field: String::new()};
+        let state1 = State1 {
+            field: String::new(),
+        };
         let postgres1 = postgres.duplicate();
         let mut db1 = AppendDb::new(postgres1, state1.clone());
-        db1.update(Update1::Append("Hello".to_string())).await.expect("update");
+        db1.update(Update1::Append("Hello".to_string()))
+            .await
+            .expect("update");
         assert_eq!(db1.get().await.deref().field, "Hello".to_string());
-        db1.update(Update1::Set("Hello world!".to_string())).await.expect("update");
-        assert_eq!(db1.get().await.deref().field, "Hello world!".to_string());        
-    }     
+        db1.update(Update1::Set("Hello world!".to_string()))
+            .await
+            .expect("update");
+        assert_eq!(db1.get().await.deref().field, "Hello world!".to_string());
+    }
 
     #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
     async fn postgres_snapshot() {
@@ -149,13 +155,22 @@ mod tests {
         assert_eq!(upds, vec![SnapshotedUpdate::Snapshot(State0 { field: 43 })]);
 
         let postgres1 = postgres0.duplicate();
-        let state1 = State1 { field: "Hello".to_string() };
+        let state1 = State1 {
+            field: "Hello".to_string(),
+        };
         let mut db1 = AppendDb::new(postgres1, state1.clone());
-        db1.update(Update1::Append(" world!".to_string())).await.expect("update");
+        db1.update(Update1::Append(" world!".to_string()))
+            .await
+            .expect("update");
         db1.snapshot().await.expect("snapshot");
         let upds1 = db1.backend.updates().await.expect("collected");
-        assert_eq!(upds1, vec![SnapshotedUpdate::Snapshot(State1 { field: "Hello world!".to_string() })]);
-    }    
+        assert_eq!(
+            upds1,
+            vec![SnapshotedUpdate::Snapshot(State1 {
+                field: "Hello world!".to_string()
+            })]
+        );
+    }
 
     #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
     async fn postgres_reconstruct() {
@@ -178,15 +193,21 @@ mod tests {
         db.load().await.expect("load");
         assert_eq!(db.get().await.deref().field, 4);
 
-        let state1 = State1 {field: String::new()};
+        let state1 = State1 {
+            field: String::new(),
+        };
         let postgres1 = postgres.duplicate();
         let mut db1 = AppendDb::new(postgres1, state1.clone());
-        db1.update(Update1::Append("Hello".to_string())).await.expect("update");
-        db1.update(Update1::Set("Hello world!".to_string())).await.expect("update");
+        db1.update(Update1::Append("Hello".to_string()))
+            .await
+            .expect("update");
+        db1.update(Update1::Set("Hello world!".to_string()))
+            .await
+            .expect("update");
 
         db1.load().await.expect("load");
         assert_eq!(db1.get().await.deref().field, "Hello world!".to_string());
-    }    
+    }
 
     #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
     async fn postgres_reconstruct_snapshot() {
@@ -212,26 +233,43 @@ mod tests {
         db.load().await.expect("load");
         assert_eq!(db.get().await.deref().field, 4);
 
-        let state1 = State1 {field: String::new()};
+        let state1 = State1 {
+            field: String::new(),
+        };
         let postgres1 = postgres.duplicate();
         let mut db1 = AppendDb::new(postgres1, state1.clone());
 
-        db1.update(Update1::Append("Hello ') drop table updates2;".to_string())).await.expect("update");
+        db1.update(Update1::Append("Hello ') drop table updates2;".to_string()))
+            .await
+            .expect("update");
         db1.snapshot().await.expect("snapshot");
-        db1.update(Update1::Set("Hello world! ') drop table updates2;".to_string())).await.expect("update");
+        db1.update(Update1::Set(
+            "Hello world! ') drop table updates2;".to_string(),
+        ))
+        .await
+        .expect("update");
 
         db1.load().await.expect("load");
-        assert_eq!(db1.get().await.deref().field, "Hello world! ') drop table updates2;".to_string());
+        assert_eq!(
+            db1.get().await.deref().field,
+            "Hello world! ') drop table updates2;".to_string()
+        );
     }
 
     #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
     async fn uuid_test() {
         let u_id = Uuid::new_v4();
-        let id = query_scalar("insert into uuid_test (u_id) values ($1) returning id").bind(u_id).fetch_one(&pool).await;
-        assert!(id.is_ok(), "Failed to insert: {}", format!("{:?}",id));
+        let id = query_scalar("insert into uuid_test (u_id) values ($1) returning id")
+            .bind(u_id)
+            .fetch_one(&pool)
+            .await;
+        assert!(id.is_ok(), "Failed to insert: {}", format!("{:?}", id));
         let id: i32 = id.unwrap();
-        let v: Result<TestStruct, sqlx::Error> = query_as("select * from uuid_test where id=$1").bind(id).fetch_one(&pool).await;
-        assert!(v.is_ok(), "Failed to select: {}", format!("{:?}",v));
-        assert_eq!(v.unwrap(), TestStruct{id, u_id}, "Not equal objects")
+        let v: Result<TestStruct, sqlx::Error> = query_as("select * from uuid_test where id=$1")
+            .bind(id)
+            .fetch_one(&pool)
+            .await;
+        assert!(v.is_ok(), "Failed to select: {}", format!("{:?}", v));
+        assert_eq!(v.unwrap(), TestStruct { id, u_id }, "Not equal objects")
     }
 }
