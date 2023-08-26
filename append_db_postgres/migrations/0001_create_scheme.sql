@@ -13,3 +13,8 @@ create table updates2(
     tag text not null,
     body jsonb not null
 );
+
+create table uuid_test(
+    id serial primary key,
+    u_id uuid not null
+);
