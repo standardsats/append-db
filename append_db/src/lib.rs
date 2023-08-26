@@ -9,7 +9,6 @@ mod tests {
     use super::backend::memory::InMemory;
     use super::db::AppendDb;
     use std::convert::Infallible;
-    use std::ops::Deref;
 
     #[derive(Clone, Debug, PartialEq)]
     struct State0 {
@@ -40,23 +39,23 @@ mod tests {
     async fn in_memory_init() {
         let state0 = State0 { field: 42 };
         let db = AppendDb::new(InMemory::new(), state0.clone());
-        assert_eq!(db.get().await.deref(), &state0);
+        assert_eq!(db.get(), state0);
     }
 
     #[tokio::test]
     async fn in_memory_updates() {
         let state0 = State0 { field: 42 };
-        let mut db = AppendDb::new(InMemory::new(), state0);
+        let db = AppendDb::new(InMemory::new(), state0);
         db.update(Update0::Add(1)).await.expect("update");
-        assert_eq!(db.get().await.deref().field, 43);
+        assert_eq!(db.get().field, 43);
         db.update(Update0::Set(4)).await.expect("update");
-        assert_eq!(db.get().await.deref().field, 4);
+        assert_eq!(db.get().field, 4);
     }
 
     #[tokio::test]
     async fn in_memory_snapshot() {
         let state0 = State0 { field: 42 };
-        let mut db = AppendDb::new(InMemory::new(), state0);
+        let db = AppendDb::new(InMemory::new(), state0);
         db.update(Update0::Add(1)).await.expect("update");
         db.snapshot().await.expect("snapshot");
 
@@ -67,23 +66,23 @@ mod tests {
     #[tokio::test]
     async fn in_memory_reconstruct() {
         let state0 = State0 { field: 42 };
-        let mut db = AppendDb::new(InMemory::new(), state0);
+        let db = AppendDb::new(InMemory::new(), state0);
         db.update(Update0::Add(1)).await.expect("update");
         db.update(Update0::Set(4)).await.expect("update");
 
         db.load().await.expect("load");
-        assert_eq!(db.get().await.deref().field, 4);
+        assert_eq!(db.get().field, 4);
     }
 
     #[tokio::test]
     async fn in_memory_reconstruct_snapshot() {
         let state0 = State0 { field: 42 };
-        let mut db = AppendDb::new(InMemory::new(), state0);
+        let db = AppendDb::new(InMemory::new(), state0);
         db.update(Update0::Add(1)).await.expect("update");
         db.snapshot().await.expect("snapshot");
         db.update(Update0::Set(4)).await.expect("update");
 
         db.load().await.expect("load");
-        assert_eq!(db.get().await.deref().field, 4);
+        assert_eq!(db.get().field, 4);
     }
 }

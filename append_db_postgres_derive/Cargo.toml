@@ -1,7 +1,11 @@
 [package]
 name = "append_db_postgres_derive"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
+description = "Derivation boilerplate for PostgreSQL for append-db crate."
+license = "MIT"
+repository = "https://github.com/standardsats/append-db"
+authors = ["Anton Gushcha <ncrashed@proton.me>", "Levon Oganyan <lemarwin42@gmail.com>"]
 
 [lib]
 proc-macro = true

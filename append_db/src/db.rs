@@ -1,8 +1,7 @@
 pub use crate::backend::class::{SnapshotedUpdate, State, StateBackend};
-use std::ops::Deref;
-use std::sync::Arc;
+use std::marker::Sync;
+use stm::{atomically, TVar};
 use thiserror::Error;
-use tokio::sync::{Mutex, MutexGuard};
 
 /// We can fail either due state update logic or storage backend failure
 ///
@@ -18,30 +17,50 @@ pub enum AppendErr<BackErr, UpdErr> {
 
 pub struct AppendDb<T: StateBackend> {
     pub backend: T,
-    pub last_state: Arc<Mutex<T::State>>,
+    pub last_state: TVar<T::State>,
 }
 
-impl<St: Clone + State + 'static, Backend: StateBackend<State = St>> AppendDb<Backend> {
+impl<St: Clone + State + Sync + Send + 'static, Backend: StateBackend<State = St>>
+    AppendDb<Backend>
+{
     /// Initialize with given backend and strarting in memory state
     pub fn new(backend: Backend, initial_state: St) -> Self {
         AppendDb {
             backend,
-            last_state: Arc::new(Mutex::new(initial_state)),
+            last_state: TVar::new(initial_state),
         }
     }
 
-    /// Get current in memory state
-    pub async fn get(&self) -> MutexGuard<'_, St> {
-        self.last_state.lock().await
+    /// Access current state
+    pub fn get(&self) -> St {
+        self.last_state.read_atomic()
+    }
+
+    /// Access part of state
+    pub fn get_with<F, T: Clone>(&self, getter: F) -> T
+    where
+        F: FnOnce(&St) -> T,
+    {
+        let st_arc = self.last_state.read_ref_atomic();
+        let st: &St = st_arc
+            .downcast_ref()
+            .expect("Cast to state is always valid here");
+        getter(st).clone()
     }
 
     /// Write down to storage new update and update in memory version
-    pub async fn update(
-        &mut self,
-        upd: St::Update,
-    ) -> Result<(), AppendErr<Backend::Err, St::Err>> {
-        let mut state = self.last_state.lock().await;
-        state.update(upd.clone()).map_err(AppendErr::Update)?;
+    pub async fn update(&self, upd: St::Update) -> Result<(), AppendErr<Backend::Err, St::Err>> {
+        atomically(|trans| {
+            let mut state = self.last_state.read(trans)?;
+            let upd = state.update(upd.clone()).map_err(AppendErr::Update);
+            match upd {
+                Ok(_) => {
+                    self.last_state.write(trans, state)?;
+                    Ok(Ok(()))
+                }
+                Err(e) => Ok(Err(e)),
+            }
+        })?;
         self.backend
             .write(SnapshotedUpdate::Incremental(upd))
             .await
@@ -50,22 +69,25 @@ impl<St: Clone + State + 'static, Backend: StateBackend<State = St>> AppendDb<Ba
     }
 
     /// Write down snapshot for current state
-    pub async fn snapshot(&mut self) -> Result<(), AppendErr<Backend::Err, St::Err>> {
-        let state = self.last_state.lock().await;
+    pub async fn snapshot(&self) -> Result<(), AppendErr<Backend::Err, St::Err>> {
+        let state = atomically(|trans| self.last_state.read(trans));
         self.backend
-            .write(SnapshotedUpdate::Snapshot(state.deref().clone()))
+            .write(SnapshotedUpdate::Snapshot(state))
             .await
             .map_err(AppendErr::Backend)?;
         Ok(())
     }
 
     /// Load state from storage
-    pub async fn load(&mut self) -> Result<(), AppendErr<Backend::Err, St::Err>> {
+    pub async fn load(&self) -> Result<(), AppendErr<Backend::Err, St::Err>> {
         let updates = self.backend.updates().await.map_err(AppendErr::Backend)?;
 
         let (mut state, start_index) = match updates.first() {
             Some(SnapshotedUpdate::Snapshot(s)) => (s.clone(), 1),
-            _ => (self.last_state.lock().await.deref().clone(), 0),
+            _ => {
+                let state = atomically(|trans| self.last_state.read(trans));
+                (state, 0)
+            }
         };
 
         for upd in &updates[start_index..] {
@@ -76,8 +98,42 @@ impl<St: Clone + State + 'static, Backend: StateBackend<State = St>> AppendDb<Ba
                 }
             }
         }
-        let mut cur_state = self.last_state.lock().await;
-        *cur_state = state;
+        atomically(|trans| self.last_state.write(trans, state.clone()));
+
+        Ok(())
+    }
+
+    /// Load state from storage using provided function to patch starting and snapshot states. That
+    /// is helpful if you add some runtime info into state that is not rendered in updates.
+    ///
+    /// The second parameter in the closure indicates whether the patching occurs at start or not.
+    /// For later snapshots it will be called with false.
+    pub async fn load_patched<F>(
+        &self,
+        patch_state: F,
+    ) -> Result<(), AppendErr<Backend::Err, St::Err>>
+    where
+        F: Copy + FnOnce(St, bool) -> St,
+    {
+        let updates = self.backend.updates().await.map_err(AppendErr::Backend)?;
+
+        let (mut state, start_index) = match updates.first() {
+            Some(SnapshotedUpdate::Snapshot(s)) => (patch_state(s.clone(), true), 1),
+            _ => {
+                let state = atomically(|trans| self.last_state.read(trans));
+                (patch_state(state, true), 0)
+            }
+        };
+
+        for upd in &updates[start_index..] {
+            match upd {
+                SnapshotedUpdate::Snapshot(s) => state = patch_state(s.clone(), false),
+                SnapshotedUpdate::Incremental(upd) => {
+                    state.update(upd.clone()).map_err(AppendErr::Update)?
+                }
+            }
+        }
+        atomically(|trans| self.last_state.write(trans, state.clone()));
 
         Ok(())
     }

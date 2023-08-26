@@ -13,7 +13,7 @@ pub trait StateBackend {
     type Err: Debug + Error + 'static;
 
     /// Write down state update into storage
-    async fn write(&mut self, upd: SnapshotedUpdate<Self::State>) -> Result<(), Self::Err>;
+    async fn write(&self, upd: SnapshotedUpdate<Self::State>) -> Result<(), Self::Err>;
 
     /// Collect all updates until first snapshot in the chain
     async fn updates(&self) -> Result<Vec<SnapshotedUpdate<Self::State>>, Self::Err>;

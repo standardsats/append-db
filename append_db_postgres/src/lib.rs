@@ -16,8 +16,9 @@ mod tests {
     use serde::{Deserialize, Serialize};
     use sqlx::{query_as, query_scalar, FromRow};
     use std::convert::Infallible;
-    use std::ops::Deref;
     use uuid::Uuid;
+    use std::time::Duration;
+    use tokio::time::timeout;
 
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromRow)]
     struct TestStruct {
@@ -79,7 +80,7 @@ mod tests {
     async fn postgres_init() {
         let state0 = State0 { field: 42 };
         let db = AppendDb::new(Postgres::new(pool), state0.clone());
-        assert_eq!(db.get().await.deref(), &state0);
+        assert_eq!(db.get(), state0);
     }
 
     #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
@@ -87,55 +88,55 @@ mod tests {
         let postgres = Postgres::new(pool);
         let state0 = State0 { field: 42 };
         let db = AppendDb::new(postgres.clone(), state0.clone());
-        assert_eq!(db.get().await.deref(), &state0);
+        assert_eq!(db.get(), state0);
 
         let state1 = State1 {
             field: String::new(),
         };
         let postgres1 = postgres.duplicate();
         let db = AppendDb::new(postgres1, state1.clone());
-        assert_eq!(db.get().await.deref(), &state1);
+        assert_eq!(db.get(), state1);
     }
 
     #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
     async fn postgres_updates() {
         let state0 = State0 { field: 42 };
-        let mut db = AppendDb::new(Postgres::new(pool), state0.clone());
+        let db = AppendDb::new(Postgres::new(pool), state0.clone());
         db.update(Update0::Add(1)).await.expect("update");
-        assert_eq!(db.get().await.deref().field, 43);
+        assert_eq!(db.get().field, 43);
         db.update(Update0::Set(4)).await.expect("update");
-        assert_eq!(db.get().await.deref().field, 4);
+        assert_eq!(db.get().field, 4);
     }
 
     #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
     async fn two_tables_test_updates() {
         let postgres = Postgres::new(pool);
         let state0 = State0 { field: 42 };
-        let mut db = AppendDb::new(postgres.clone(), state0.clone());
+        let db = AppendDb::new(postgres.clone(), state0.clone());
         db.update(Update0::Add(1)).await.expect("update");
-        assert_eq!(db.get().await.deref().field, 43);
+        assert_eq!(db.get().field, 43);
         db.update(Update0::Set(4)).await.expect("update");
-        assert_eq!(db.get().await.deref().field, 4);
+        assert_eq!(db.get().field, 4);
 
         let state1 = State1 {
             field: String::new(),
         };
         let postgres1 = postgres.duplicate();
-        let mut db1 = AppendDb::new(postgres1, state1.clone());
+        let db1 = AppendDb::new(postgres1, state1.clone());
         db1.update(Update1::Append("Hello".to_string()))
             .await
             .expect("update");
-        assert_eq!(db1.get().await.deref().field, "Hello".to_string());
+        assert_eq!(db1.get().field, "Hello".to_string());
         db1.update(Update1::Set("Hello world!".to_string()))
             .await
             .expect("update");
-        assert_eq!(db1.get().await.deref().field, "Hello world!".to_string());
+        assert_eq!(db1.get().field, "Hello world!".to_string());
     }
 
     #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
     async fn postgres_snapshot() {
         let state0 = State0 { field: 42 };
-        let mut db = AppendDb::new(Postgres::new(pool), state0.clone());
+        let db = AppendDb::new(Postgres::new(pool), state0.clone());
         db.update(Update0::Add(1)).await.expect("update");
         db.snapshot().await.expect("snapshot");
 
@@ -147,7 +148,7 @@ mod tests {
     async fn two_tables_postgres_snapshot() {
         let postgres0 = Postgres::new(pool);
         let state0 = State0 { field: 42 };
-        let mut db = AppendDb::new(postgres0.clone(), state0.clone());
+        let db = AppendDb::new(postgres0.clone(), state0.clone());
         db.update(Update0::Add(1)).await.expect("update");
         db.snapshot().await.expect("snapshot");
 
@@ -158,7 +159,7 @@ mod tests {
         let state1 = State1 {
             field: "Hello".to_string(),
         };
-        let mut db1 = AppendDb::new(postgres1, state1.clone());
+        let db1 = AppendDb::new(postgres1, state1.clone());
         db1.update(Update1::Append(" world!".to_string()))
             .await
             .expect("update");
@@ -175,29 +176,29 @@ mod tests {
     #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
     async fn postgres_reconstruct() {
         let state0 = State0 { field: 42 };
-        let mut db = AppendDb::new(Postgres::new(pool), state0.clone());
+        let db = AppendDb::new(Postgres::new(pool), state0.clone());
         db.update(Update0::Add(1)).await.expect("update");
         db.update(Update0::Set(4)).await.expect("update");
 
         db.load().await.expect("load");
-        assert_eq!(db.get().await.deref().field, 4);
+        assert_eq!(db.get().field, 4);
     }
 
     #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
     async fn two_tables_postgres_reconstruct() {
         let postgres = Postgres::new(pool);
         let state0 = State0 { field: 42 };
-        let mut db = AppendDb::new(postgres.clone(), state0.clone());
+        let db = AppendDb::new(postgres.clone(), state0.clone());
         db.update(Update0::Add(1)).await.expect("update");
         db.update(Update0::Set(4)).await.expect("update");
         db.load().await.expect("load");
-        assert_eq!(db.get().await.deref().field, 4);
+        assert_eq!(db.get().field, 4);
 
         let state1 = State1 {
             field: String::new(),
         };
         let postgres1 = postgres.duplicate();
-        let mut db1 = AppendDb::new(postgres1, state1.clone());
+        let db1 = AppendDb::new(postgres1, state1.clone());
         db1.update(Update1::Append("Hello".to_string()))
             .await
             .expect("update");
@@ -206,38 +207,38 @@ mod tests {
             .expect("update");
 
         db1.load().await.expect("load");
-        assert_eq!(db1.get().await.deref().field, "Hello world!".to_string());
+        assert_eq!(db1.get().field, "Hello world!".to_string());
     }
 
     #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
     async fn postgres_reconstruct_snapshot() {
         let state0 = State0 { field: 42 };
-        let mut db = AppendDb::new(Postgres::new(pool), state0.clone());
+        let db = AppendDb::new(Postgres::new(pool), state0.clone());
         db.update(Update0::Add(1)).await.expect("update");
         db.snapshot().await.expect("snapshot");
         db.update(Update0::Set(4)).await.expect("update");
 
         db.load().await.expect("load");
-        assert_eq!(db.get().await.deref().field, 4);
+        assert_eq!(db.get().field, 4);
     }
 
     #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
     async fn two_tables_postgres_reconstruct_snapshot() {
         let postgres = Postgres::new(pool);
         let state0 = State0 { field: 42 };
-        let mut db = AppendDb::new(postgres.clone(), state0.clone());
+        let db = AppendDb::new(postgres.clone(), state0.clone());
         db.update(Update0::Add(1)).await.expect("update");
         db.snapshot().await.expect("snapshot");
         db.update(Update0::Set(4)).await.expect("update");
 
         db.load().await.expect("load");
-        assert_eq!(db.get().await.deref().field, 4);
+        assert_eq!(db.get().field, 4);
 
         let state1 = State1 {
             field: String::new(),
         };
         let postgres1 = postgres.duplicate();
-        let mut db1 = AppendDb::new(postgres1, state1.clone());
+        let db1 = AppendDb::new(postgres1, state1.clone());
 
         db1.update(Update1::Append("Hello ') drop table updates2;".to_string()))
             .await
@@ -251,7 +252,7 @@ mod tests {
 
         db1.load().await.expect("load");
         assert_eq!(
-            db1.get().await.deref().field,
+            db1.get().field,
             "Hello world! ') drop table updates2;".to_string()
         );
     }
@@ -271,5 +272,33 @@ mod tests {
             .await;
         assert!(v.is_ok(), "Failed to select: {}", format!("{:?}", v));
         assert_eq!(v.unwrap(), TestStruct { id, u_id }, "Not equal objects")
+    }
+
+    #[sqlx_database_tester::test(pool(variable = "pool", migrations = "./migrations"))]
+    async fn dead_lock_test() {
+        let state0 = State0 { field: 0 };
+        let db = AppendDb::new(Postgres::new(pool), state0.clone());
+
+        let locking_future = async move {
+            let first_thread = async {
+                for _ in 0..1000 {
+                    db.update(Update0::Add(1)).await.expect("update");
+                }
+            };
+            let second_thread = async {
+                for _ in 0..1000 {
+                    db.update(Update0::Add(1)).await.expect("update");
+                }
+            };
+            tokio::join!(first_thread, second_thread);
+            assert_eq!(db.get().field, 2000);
+        };
+
+        assert!(
+            timeout(Duration::from_secs(3), locking_future)
+                .await
+                .is_ok(),
+            "Dead locked"
+        );
     }
 }

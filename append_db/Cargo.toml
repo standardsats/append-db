@@ -1,12 +1,17 @@
 [package]
 name = "append_db"
-version = "0.1.0"
+version = "0.3.2"
 edition = "2021"
+description = "Simple append based state for applications over popular databases."
+license = "MIT"
+repository = "https://github.com/standardsats/append-db"
+authors = ["Anton Gushcha <ncrashed@proton.me>", "Levon Oganyan <lemarwin42@gmail.com>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 async-trait = "0.1.56"
 log = "0.4.14"
+stm = "0.4.0"
 thiserror = "1.0.31"
 tokio = { version = "1", features = ["full"] }
